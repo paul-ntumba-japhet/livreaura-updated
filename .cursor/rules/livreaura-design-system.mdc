@@ -1,0 +1,161 @@
+---
+description: "Livreaura — identité visuelle, design tokens et règles UI communes."
+alwaysApply: true
+---
+
+# Livreaura — Design System
+
+Contrat normatif détaillé : `.cursor/rules/LIVREAURA_DESIGN_SYSTEM_CURSOR.md`.
+En cas de conflit : accessibilité et sécurité, puis cohérence fonctionnelle, puis ce design system, puis une préférence locale de page.
+
+La migration est progressive. Ne pas restyler un écran non audité en remplaçant ses classes. Une exception se documente ici et reste limitée.
+
+## Source de vérité
+
+Les couleurs, rayons, ombres et espacements vivent dans `frontend/app/assets/css/main.css`.
+Ne pas les répéter dans `pages/` ni `components/` lorsqu’un token existe.
+
+Ne jamais redessiner le logo ni le recomposer avec une police.
+Utiliser les fichiers officiels de `public/brand/`.
+
+## Palette de marque
+
+Orange officiel : #FF8C00
+Token : `--livreaura-orange-officiel`, `--brand-orange`, `--color-brand`.
+C’est l’orange du logo et de la production. Ne pas inventer un autre orange de marque.
+
+Coffee Black : #2B160D
+Café profond : #361804
+Orange foncé : #A84200
+Ivory : #FFF8F2
+Soft Sand : #F1E6DE
+Warm Gray : #6E625B
+White : #FFFFFF
+
+Le noir café proposé #29180F n’est pas retenu : la valeur validée reste #2B160D.
+
+## Neutres d’interface
+
+Fond de page et carte : #FFFFFF
+Surface discrète : #FAFAFA
+Surface atténuée : #F5F5F5
+Texte principal : #171717
+Texte secondaire : #525252
+Texte discret : #737373
+Bordure : #E5E5E5
+Bordure forte : #D4D4D4
+
+Le fond d’application cible est le blanc pur, sans ivoire global ni dégradé décoratif.
+Ivory et Soft Sand restent des surfaces de marque, pas le fond par défaut des nouveaux écrans.
+`--color-surface` reste l’ivoire tant que l’écran n’a pas été migré.
+
+## Usage des couleurs
+
+Orange officiel :
+- accent de marque
+- focus et anneau
+- élément distinctif
+
+Orange foncé :
+- fond d’un bouton orange sur fond clair, texte blanc
+- liens principaux
+- état actif
+
+Café profond :
+- titres
+- action principale sombre
+- fond sombre
+
+Coffee Black :
+- texte et structure des écrans non encore migrés
+
+Ne pas mettre l’orange sur toutes les actions.
+Ne pas l’utiliser comme couleur de succès, d’avertissement ou d’erreur.
+
+Sur #FF8C00, le texte est Coffee Black. Le blanc n’a pas le contraste suffisant.
+Sur #A84200, le texte est blanc.
+
+Les couleurs d’état restent les tokens existants `success`, `warning`, `danger` et `info`.
+Les valeurs proposées #067647, #B54708 et #B42318 ne sont pas adoptées tant que leur contraste n’est pas vérifié.
+
+## Typographie
+
+Interface : Inter.
+Titre principal de page : Geist, décision déjà appliquée.
+Noto Serif : seulement un contexte éditorial (citation, mise en avant de livre, campagne).
+Le logo ne se réécrit avec aucune de ces polices.
+Ne pas changer de police d’une page à l’autre. Le choix d’une seule sans-serif pour toute l’interface reste ouvert entre Inter et Geist.
+
+| Rôle | Taille / interligne | Graisse |
+|---|---|---|
+| Titre de page | 30 px / 38 px | 600 |
+| Titre de section | 22–24 px / 30–32 px | 600 |
+| Sous-titre d’interface | 18 px / 26 px | 600 |
+| Titre de carte | 16 px / 24 px | 600 |
+| Corps | 14–16 px / 22–24 px | 400 |
+| Texte secondaire | 14 px / 21 px | 400 |
+| Label | 13 px / 20 px | 500 |
+| Bouton | 14 px / 20 px | 600 |
+| Aide et métadonnée | 12–13 px / 18–20 px | 400–500 |
+
+Deux graisses dominantes par écran : 400 et 600. La graisse 500 est réservée aux labels et à certains liens.
+Chiffres comparables : `font-variant-numeric: tabular-nums`.
+
+## Espacement
+
+Échelle : 4, 8, 12, 16, 24, 32, 48, 64 px.
+
+Icône et texte : 8 px. Label et champ : 6–8 px. Champ et champ : 16–20 px.
+Blocs liés : 24 px. Sections : 32–48 px.
+Page desktop : 24–32 px. Page mobile : 16–20 px.
+
+## Géométrie
+
+Rayons : 4, 6, 8, 12, 16 px.
+Champs et boutons : 8 px. Cartes : 12 ou 16 px.
+Bordure : 1 px. Préférer une bordure à une ombre.
+Ombre autorisée : `0 2px 8px rgb(0 0 0 / 0.04)`.
+Pas d’ombre épaisse, d’effet de verre, ni de carte flottante sans rôle.
+
+Hauteur cible des champs et des boutons : 48 px. Variante compacte : 40 px.
+La zone tactile d’une action ne descend pas sous 44 × 44 px.
+
+Exception documentée, écran de connexion : champs et bouton principal à 42 px, demandés explicitement.
+
+## Boutons et formulaires
+
+Un seul bouton principal par formulaire.
+Secondaire : fond blanc, bordure neutre, texte foncé.
+Lien tertiaire : sans fond.
+
+États des boutons : défaut, survol, focus visible, actif, désactivé, chargement.
+Le chargement bloque une seconde soumission.
+
+Champs : fond blanc, bordure neutre, texte 14 px, label visible 13 px.
+États : défaut, survol, focus visible, rempli, invalide, désactivé, lecture seule, remplissage automatique.
+Pas de fond bleu sur un champ au repos. Le remplissage automatique du navigateur ne doit pas imposer sa couleur.
+L’erreur est liée au champ et n’est pas portée par la couleur seule.
+
+## Authentification
+
+Fond blanc pur. Pas d’image plein écran derrière le formulaire.
+Largeur de formulaire : 360–400 px, centré, sans carte décorative, ou deux colonnes avec un panneau éditorial.
+« Mot de passe oublié ? » au niveau du mot de passe.
+« Créer un compte » sous l’action principale.
+Recours et clôture dans un pied de page discret, en dehors du formulaire.
+Une mention de sécurité décorative ne promet pas une propriété technique non vérifiée.
+
+## Direction
+
+Interface sobre, une action principale identifiable, densité maîtrisée.
+Les illustrations ne concurrencent pas un formulaire ni un bouton.
+Mouvement : 150–200 ms, uniquement sur un changement d’état, et annulé si `prefers-reduced-motion` est demandé.
+
+## Composants
+
+Réutiliser les primitives existantes. Ne pas en créer une copie parallèle.
+Interdit dans `pages/` et `components/` :
+- couleur hexadécimale déjà couverte par un token
+- ombre ou rayon arbitraire répété
+- reproduction manuelle du logo
+- couleur de marque absente de cette charte

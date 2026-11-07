@@ -1,0 +1,431 @@
+---
+description: "Livreaura — référentiel UI A1, états, structure de contenu et critères de réalisation Nuxt."
+alwaysApply: true
+---
+
+# Livreaura — Référentiel UI et règles de réalisation Nuxt A1
+
+Version 1.0 — 9 septembre 2026. Périmètre : Identité et accès, organisations, KYC, support et back-office A1.
+
+## 1. Installation et portée
+
+Placer ce fichier sous `.cursor/rules/livreaura-a1-ui.mdc` à la racine du projet ouvert dans Cursor. Conserver l’extension `.mdc` et le frontmatter. Vérifier sa présence dans les règles du projet et son mode Always Apply. Versionner le fichier dans Git.
+
+Cette règle est chargée systématiquement ; ses exigences fonctionnelles s’appliquent aux travaux A1 et aux composants communs qui les servent. Elle ne demande pas de modifier les autres chaînes à chaque intervention. Elle guide la génération de code : elle ne constitue pas une validation automatique exécutée par Nuxt. La conformité se vérifie par les critères et tests de ce document.
+
+Instruction utilisable dans Cursor :
+
+> Applique @livreaura-a1-ui pour réaliser l’écran A1 demandé. Commence par identifier les composants réutilisables, les droits, les données API et les états nécessaires. Respecte la structure du contenu, implémente les états pertinents et vérifie les critères de recette. Signale les contrats API manquants et les écarts restants. Ne déclare aucun test réussi sans l’avoir exécuté.
+
+## 2. Instructions obligatoires pour Cursor
+
+1. Lire la configuration réelle du dépôt avant d’écrire : version Nuxt/Vue, srcDir, modules, bibliothèque UI, conventions CSS, tests, contrats API et règles du projet.
+2. Consulter le MPT A1, le MOT/MLD consolidés et les contrats inter-chaînes présents dans le dépôt. Le référentiel ne les remplace pas. Les noms de composants proposés ici sont des conventions de réalisation ; les états métier viennent du backend.
+3. Réutiliser un composant existant compatible avant d’en créer un. Une variante ou un composant métier composé est préférable à une copie de markup et de styles.
+4. Réaliser seulement le périmètre demandé. Le catalogue ci-dessous ne demande pas de générer tous les composants ou 34 pages vides à la première tâche.
+5. Garder les pages courtes : composition, récupération du contexte et orchestration. Extraire formulaires, panneaux métier, états de données et règles d’affichage.
+6. Ne pas inventer de permission, route backend, état de dossier, résultat de vérification ou délai de service. Toute proposition absente des contrats est identifiée comme telle.
+7. Si l’API manque, utiliser un adaptateur de démonstration explicitement isolé et des données fictives, uniquement lorsque la tâche demande une maquette. Ne jamais présenter une simulation comme un service connecté.
+8. Implémenter chargement, vide, erreur et reprise pour toute donnée distante ; traitement, refus et succès confirmé pour toute mutation. Ajouter les états de restriction et de concurrence pertinents.
+9. Aucune mutation sensible optimiste : décision KYC, transfert, suspension, clôture, révocation et attribution de permission attendent la confirmation du serveur.
+10. Ne pas ajouter une bibliothèque lourde, Docker, WSL ou un service cloud pour réaliser une page. Conserver le développement Windows natif et les dépendances déjà retenues.
+11. Ne pas changer une règle métier pour contourner une difficulté UI. Si les sources se contredisent sur l’autorisation ou la transition, exposer le conflit exact avant d’implémenter cette branche ; poursuivre les parties indépendantes.
+12. À la livraison, indiquer composants réutilisés/créés, états couverts, raccordement API, vérifications exécutées et limites réelles.
+
+## 3. Structure technique
+
+Les emplacements sont relatifs au répertoire source Nuxt réellement configuré : par exemple frontend/ ou frontend/app/. Ne pas créer deux racines parallèles pour imiter une version de Nuxt différente.
+
+| Répertoire | Responsabilité |
+|---|---|
+| layouts/ | public, account, backoffice : structure et navigation |
+| pages/ | Routes ; assemblage des composants et orchestration de page |
+| components/ui/ | Primitives sans métier : boutons, champs, dialogues, tableaux |
+| components/shared/ | PageHeader, SectionHeader, DataState, StatusBadge, Timeline |
+| components/identity-access/auth/ | Connexion, activation, récupération |
+| components/identity-access/account/ | Profil, sessions, consentements, parcours auteur |
+| components/identity-access/organizations/ | Organisation, adhésion, représentation |
+| components/identity-access/verification/ | KYC, preuves, exigences, décisions |
+| components/identity-access/support/ | Recours, échanges, grants documentaires |
+| components/identity-access/backoffice/ | Tâches, permissions, configuration, exploitation |
+| composables/identity-access/ | Orchestration réutilisable et état des parcours |
+| services/identity-access/ | Adaptateurs API typés et normalisation des erreurs |
+| types/identity-access/ | DTO, unions des états connus, capacités et réponses |
+| utils/identity-access/ | Fonctions pures : formatage, mapping des statuts |
+| middleware/ | Navigation selon session/portée ; ne remplace pas Laravel |
+| assets/css/ | Tokens sémantiques et styles globaux |
+
+Les tests suivent la convention du dépôt, avec groupes composants, intégration et parcours A1. Ne pas installer plusieurs clients HTTP, systèmes de formulaires ou jeux d’icônes concurrents.
+
+### Contrats de composants
+
+- Primitives : props explicites, événements typés, slots utiles ; aucun appel API ni lecture implicite des permissions.
+- Composants métier : reçoivent données et capacités autorisées ; émettent des intentions telles que submit, revoke ou request-transfer. L’appel serveur appartient à l’orchestration du parcours.
+- Les données serveur ne sont pas mutées directement par un formulaire : créer un brouillon local puis soumettre un DTO limité aux champs autorisés.
+- Définir séparément état de chargement, état de mutation, statut métier et capacités d’action. Éviter une unique propriété status qui mélange ces quatre axes.
+- Annuler ou ignorer les réponses de recherche obsolètes. Réinitialiser les données privées lors d’une déconnexion ou d’un changement de contexte organisationnel.
+- En SSR, ne jamais partager l’état d’un utilisateur entre requêtes. Ne pas rendre publiques ou mettre en cache partagé les réponses de compte, KYC ou support.
+- Les API transmettent ou permettent de déterminer des capacités actuelles. Le frontend les utilise pour l’ergonomie ; Laravel revalide au moment d’engagement.
+
+Exemple de modèle d’interface, à adapter aux contrats existants :
+
+```ts
+type LoadState = 'idle' | 'loading' | 'ready' | 'empty' | 'error'
+type MutationState = 'idle' | 'submitting' | 'succeeded' | 'failed' | 'uncertain'
+type AccountStatus = 'pending' | 'active' | 'suspended' | 'closed'
+type AccessScope = 'normal' | 'limited' | 'support_only'
+```
+
+Une réponse au statut inconnu ne doit pas être convertie silencieusement en active ou approved. Afficher un état neutre « Statut indisponible », bloquer les décisions dépendantes et journaliser seulement des informations techniques non sensibles.
+
+## 4. Composition du contenu d’un écran
+
+### Ordre par défaut
+
+1. Fil d’Ariane si la profondeur le justifie.
+2. PageHeader : un h1, une phrase d’intention si utile, contexte personnel/organisationnel, action principale.
+3. Bannière de restriction ou d’action indispensable, seulement si nécessaire.
+4. Informations essentielles à la décision : état, référence, titulaire, échéance.
+5. Contenu principal : formulaire, liste ou dossier, structuré par sections.
+6. Éléments de preuve et compléments : pièces, historique, informations techniques réservées.
+7. Actions finales à proximité du contenu qu’elles valident.
+
+Ne pas afficher des cartes statistiques, un hero promotionnel ou un long texte introductif sur chaque formulaire. Une page simple reste simple. Prévoir au plus une action principale dominante par contexte de travail ; les actions destructives sont visuellement séparées.
+
+### Gabarits de contenu
+
+| Type d’écran | Structure requise |
+|---|---|
+| Connexion/récupération | Titre court, champs essentiels, aide ciblée, action principale, navigation alternative |
+| Formulaire long | Objet et sujet, sections nommées, progression si réelle, résumé des erreurs, sauvegarde/soumission |
+| Liste | Titre et création si autorisée, recherche/filtres, total, résultats, pagination, état vide contextualisé |
+| Détail | Identité/référence/statut, résumé, contenu métier, preuves, historique, actions selon état |
+| Instruction back-office | Sujet, affectation/délais, contrôles, pièces, éventuels conflits, décision motivée |
+| Recours | Référence et portée, situation de la demande, conversation, pièces autorisées, prochaine action |
+| Paramétrage | Version et effet, groupes de paramètres avec unités, validation, confirmation, historique |
+
+Les onglets servent à séparer des vues d’un même objet. Une barre d’étapes représente une vraie progression, pas une décoration. L’accordéon contient les informations secondaires ; ne pas y cacher des erreurs ou les conditions essentielles d’une décision.
+
+### Rédaction
+
+- Interface en français ; libellés concrets : « Soumettre le dossier », « Révoquer cette session », « Demander une correction ».
+- Éviter les boutons vagues « OK », « Valider » ou « Continuer » sans contexte suffisant.
+- Distinguer « Enregistré », « Soumis », « Approuvé », « Notification acceptée » et « Effet confirmé ».
+- Présenter dates lisibles, fuseau pertinent, montants avec devise lorsque nécessaire et échéances absolues en complément des indications relatives.
+- Ne pas afficher ULID, codes d’erreur internes, vocabulaire SQL ou nom de job à l’utilisateur ordinaire. La référence de suivi reste copiable lorsque nécessaire.
+- Les messages d’erreur expliquent ce qui peut être corrigé et l’action suivante ; conserver les valeurs non sensibles déjà saisies.
+
+## 5. Direction visuelle et accessibilité
+
+Réutiliser les tokens de la charte Livreaura du dépôt. À défaut de valeurs approuvées, proposer des tokens nommés sans prétendre connaître les codes hexadécimaux exacts. La direction exprimée est orange et noir café, fonds clairs, contenu aéré, hiérarchie nette. Ne pas remplacer la charte existante sans demande.
+
+Définir des tokens sémantiques pour brand, text, muted, surface, border, focus, success, warning, danger et info. Séparer couleur de marque et couleur d’état. Centraliser espacements, rayons, ombres et typographie ; éviter valeurs arbitraires répétées dans les pages.
+
+Exigences de réalisation : labels persistants, aide reliée au champ, erreur associée, navigation clavier, focus visible, icônes nommées, couleur jamais seule porteuse d’information. Utiliser HTML natif lorsque possible. Les dialogues capturent le focus, le restaurent à la fermeture et proposent une sortie explicite ; ne pas faire d’une confirmation destructive l’action déclenchée involontairement par défaut.
+
+Annoncer les résultats asynchrones sans multiplier les annonces, respecter la réduction des animations, préserver la lisibilité avec zoom et sur mobile. Transformer les tableaux lorsque pertinent sans perdre de colonnes critiques. Les contrôles doivent rester confortables au toucher. Un bouton désactivé doit avoir une explication disponible autrement que par une infobulle inaccessible au clavier.
+
+## 6. États communs
+
+| État | Exigence |
+|---|---|
+| Normal | Lisible et disponible |
+| Survol | Retour discret ; aucune information indispensable exclusivement au survol |
+| Focus | Indicateur clavier visible |
+| Pressé | Retour immédiat de l’interaction |
+| Sélectionné/actif | Choix ou emplacement courant identifiable |
+| Désactivé | Condition bloquante expliquée ; ne pas confondre avec lecture seule |
+| Lecture seule | Valeur consultable/copiable si non sensible ; pas de modification |
+| Chargement | Préserver la structure ; empêcher doubles soumissions |
+| Succès | Confirmation serveur réelle |
+| Erreur | Message et récupération adaptés |
+| Vide | Absence expliquée, action adaptée au cas |
+| Restreint | Portée et prochaine action autorisée compréhensibles |
+
+Tous les états ne s’appliquent pas à chaque composant. Pour une collection distante : loading, ready, empty, error sont nécessaires. Une actualisation conserve éventuellement les anciennes données visibles avec un indicateur explicite ; elle ne transforme pas une donnée ancienne en autorisation actuelle.
+
+## 7. Catalogue des composants UI
+
+Les noms PascalCase sont des noms cibles de composants ou de variantes, pas l’obligation de créer un fichier pour chaque ligne. Les composants métier réutilisent les primitives.
+
+### 7.1 Structure et navigation
+
+| Composant | Usage | États spécifiques |
+|---|---|---|
+| PublicLayout | Parcours publics | Standard, service indisponible |
+| AccountLayout | Espace personnel | normal, limited, support_only |
+| BackofficeLayout | Gestion A1 | Autorisé, expiré, refusé |
+| AppHeader | Navigation et identité | Visiteur/authentifié, mobile, menu ouvert/fermé |
+| AppSidebar | Sections | Déployée/réduite, mobile, élément actif, groupe ouvert |
+| Breadcrumbs | Localisation | Parents navigables, page courante, libellé long |
+| PageHeader | Titre, contexte, actions | Chargement, prêt, lecture seule, restreint |
+| AccountMenu | Profil/sécurité/déconnexion | Ouvert/fermé, déconnexion en cours |
+| ContextSwitcher | Personnel ou organisation | Personnel, organisation, aucune, contexte invalidé |
+| Tabs | Vues d’un objet | Actif/inactif/désactivé, compteur éventuel |
+| Stepper | Progression réelle | À venir, courant, terminé, erreur, bloqué |
+| NavigationDrawer | Navigation mobile | Ouvert/fermé, focus restauré |
+
+### 7.2 Actions et formulaires
+
+| Composant | Usage | États/variantes |
+|---|---|---|
+| UiButton | Action | Primaire, secondaire, discret, destructif ; loading/disabled |
+| UiIconButton | Action compacte | Nom accessible, disponible, chargement, désactivé |
+| UiLink | Navigation | Interne/externe, focus, courant |
+| ActionMenu | Actions secondaires | Ouvert/fermé, disponible/restreint/destructif |
+| FormField | Label/aide/erreur | Requis/facultatif, invalide, lecture seule |
+| TextInput | Texte court | Vide/rempli/focus/invalide/disabled/readonly |
+| EmailInput | Adresse e-mail | Vide, format invalide, rempli, readonly ; vérification séparée |
+| PhoneInput | Téléphone si prévu | Indicatif, vide, invalide, fonctionnalité inactive |
+| PasswordInput | Secret | Masqué/visible, vide, invalide, saisie ; aucun stockage local |
+| PasswordRequirements | Exigences | Satisfaite/non satisfaite ; verdict serveur final |
+| PasswordConfirmation | Confirmation | Vide, identique, différente |
+| TextArea | Motif/réponse | Vide/rempli, limite proche/atteinte, erreur, readonly |
+| SelectInput | Choix fermé | Ouvert/fermé, sélection, aucune option, loading/error |
+| Autocomplete | Recherche d’objet | Initial, recherche, résultats, vide, sélection, erreur |
+| MultiSelect | Choix multiples | Aucun/partiel, limite, readonly |
+| Checkbox | Accord/choix | Cochée/non cochée, disabled ; indéterminée pour groupe |
+| RadioGroup / ChoiceCard | Choix exclusif | Sélectionné/non sélectionné, focus, indisponible |
+| Toggle | Paramètre binaire adapté | Activé/désactivé, sauvegarde, erreur ; pas de décision sensible immédiate |
+| DateTimeInput | Période/échéance | Vide, valide, hors bornes, invalide, readonly, fuseau visible |
+| CharacterCounter | Longueur | Normal, limite proche, atteinte |
+| ErrorSummary | Erreurs de formulaire | Visible après validation, liens vers champs |
+| FormActions | Sauvegarde/soumission | Inchangé, modifié, saving, enregistré, erreur, conflit |
+| UnsavedChangesDialog | Sortie de brouillon | Fermé, confirmation, conserver/abandonner |
+
+### 7.3 Affichage des données
+
+| Composant | Usage | États/variantes |
+|---|---|---|
+| SummaryCard | Synthèse | Standard, sélectionnée, loading, restreinte |
+| DescriptionList | Détails clé–valeur | Présent, absent, masqué, copiable |
+| Avatar | Compte/organisation | Image, initiales, image indisponible |
+| StatusBadge | Statut métier | Libellé+icône+couleur ; inconnu neutre et non permissif |
+| RoleBadge | Rôle | Actif, expiré/révoqué si applicable ; distinct des permissions |
+| VerificationBadge | Vérification | Non vérifié, vérifié, à renouveler, restreint, expiré, révoqué |
+| CardList | Collection mobile | Loading, vide, résultats, erreur |
+| DataTable | Collection tabulaire | Loading, vide, résultats, erreur, tri, sélection si utile |
+| SearchInput | Recherche | Vide, saisie, recherche, résultats, aucun |
+| FilterBar | Filtres | Inactif/actif, réinitialisation, combinaison sans résultat |
+| SortControl | Ordre | Ascendant/descendant, colonne active |
+| Pagination | Pages | Première/intermédiaire/dernière, loading |
+| ResultCount | Nombre de résultats | Total, filtré, zéro |
+| Accordion | Compléments | Ouvert/fermé, indicateur d’erreur ou pièce manquante |
+| AuditTimeline | Historique | Vide, chargé, paginé, acteur humain/système |
+| DeadlineIndicator | Échéance | À venir, proche, dépassée, aucune |
+| CopyReference | Référence de suivi | Disponible, copié, échec ; jamais secret |
+
+### 7.4 Retours système
+
+| Composant | Usage | États/variantes |
+|---|---|---|
+| InlineAlert | Retour persistant | Information, succès, avertissement, erreur |
+| RestrictionBanner | Portée/action requise | En attente, restriction, recours disponible |
+| Toast | Retour bref | Succès, information, erreur récupérable ; pas seul support d’une erreur importante |
+| Skeleton | Chargement initial | Carte/tableau/détail/formulaire |
+| ProgressIndicator | Upload/opération | Déterminé si mesuré, indéterminé sinon |
+| EmptyState | Absence de contenu | Premier usage, filtre sans résultat, aucun accès |
+| ErrorState | Échec de lecture | Reprise possible/en cours/échouée |
+| ConfirmDialog | Confirmation | Initial, validation, traitement, succès, refus |
+| DestructiveDialog | Action sensible | Conséquences, motif, confirmation, traitement |
+| ReauthenticationDialog | Preuve récente | Saisie, vérification, erreur, accord, expiration |
+| DetailDrawer | Détail rapide | Ouvert/fermé, loading, contenu, erreur |
+| Tooltip / HelpPopover | Aide | Focus/survol, ouvert/fermé ; aide critique hors infobulle |
+| ForbiddenState | Accès refusé | Retour autorisé, assistance pertinente |
+| SessionExpiredState | Reconnexion | Expirée ou révoquée ; retour à une URL interne validée |
+| NotFoundState | Objet absent/non visible | Message neutre, retour |
+| ConnectivityBanner | Réseau | Hors ligne, reconnexion, résultat incertain à vérifier |
+
+### 7.5 Identité, sécurité et consentements
+
+| Composant | États/variantes |
+|---|---|
+| RegistrationPathSelector | Disponible, sélectionné, hors V1 |
+| RegistrationSummary | Complet, manquant, soumission, résultat |
+| EmailActivationPanel | En attente, contrôle, confirmé, invalide, expiré, déjà utilisé |
+| ResendChallengeAction | Disponible, attente avant renvoi, demandé, quota atteint, indisponible |
+| RecoveryRequestResult | Réponse générique identique pour compte existant ou absent |
+| PasswordResetForm | Preuve recevable/invalide/expirée/consommée, changement confirmé |
+| SessionCard | Courante/autre, active/expired/revoked |
+| ConnectionDetails | Date et contexte disponible/inconnu ; localisation non certaine identifiée |
+| AccountSessionList | Une/plusieurs, loading, révocation |
+| AccountStatusPanel | pending, active, suspended, closed |
+| AccessScopePanel | normal, limited, support_only |
+| VersionedLegalText | Chargé, version applicable/historique, erreur |
+| ConsentControl | Requis/facultatif, sans réponse/accepté/refusé/retiré si facultatif |
+| ConsentHistory | Version, réponse, date ; preuves précédentes conservées |
+| AuthorActivationPanel | Non activé, activation, activé, revendication à examiner |
+| AuthorClaimForm | Fiche sélectionnée, preuve manquante, demande envoyée, complément, résultat |
+
+### 7.6 Organisations et représentation
+
+| Composant | États/variantes |
+|---|---|
+| OrganizationCard | Accessible, sélectionnée, restreinte ; vérification séparée |
+| OrganizationLookup | Recherche, correspondances possibles, aucune, ambiguïté |
+| OrganizationForm | Brouillon, incomplet, valide, création, erreur |
+| RepresentationPanel | Principal déclarant, mandat vérifié, changement en examen, à régulariser |
+| OrganizationMemberList | Résultats, vide, droit insuffisant, loading |
+| MembershipRow | Statut backend, principal/membre, permissions effectives |
+| OrganizationPermissionMatrix | Accordée/non accordée ; modifiable/interdite |
+| RepresentativeTransferRequest | Nouveau titulaire, mandat manquant, soumis, examen, résultat |
+| RepresentativeTransferComparison | Ancien/nouveau principal, permissions et sessions concernées |
+| RepresentativeTransferConfirmation | Prêt, conflit, confirmation, effectué |
+
+Une correspondance de nom ne prouve ni une identité d’organisation ni un droit d’accès. Ne pas ajouter des fonctions d’invitation, suppression de membre ou délégation qui ne figurent pas au contrat métier.
+
+### 7.7 KYC et pièces
+
+| Composant | États/variantes |
+|---|---|
+| VerificationDossierCard | draft, submitted, under_review, approved, needs_fix, rejected |
+| VerificationSubjectSelector | Individu/organisation autorisé, niveau applicable/indisponible/déjà en cours |
+| VerificationRequirements | À fournir, fournie, manquante, non recevable ; obligatoire/facultative |
+| FiscalProfileForm | Incomplet, complet, invalide, figé |
+| PayoutAccountForm | Incomplet, complet, titulaire incohérent, figé |
+| FileDropzone | Vide, survol fichier, sélection, format/taille refusés |
+| EvidenceFileRow | Upload, téléversé, contrôle technique si disponible, accepté/refusé techniquement, échec |
+| UploadProgress | Mesuré, interrompu, reprise ; aucune progression fictive |
+| PrivateEvidencePreview | Loading, aperçu, sans aperçu, inaccessible, refusé |
+| EvidenceActions | Ajout/retrait/remplacement en draft, consultation seule après gel |
+| DossierCompletenessSummary | Complet, manquant, fichier inaccessible |
+| DossierSubmissionDialog | Prêt, incomplet, soumission, soumis ; gel annoncé |
+| DossierVersionSelector | Courante, historique, nouvelle version |
+| DossierVersionComparison | Ajouté, modifié, inchangé |
+| VerificationControlGrid | Non contrôlé, résultat consigné, justification manquante ; codes API exacts |
+| VerificationDecisionPanel | Approuver/corriger/rejeter, motif ou contrôle manquant, permis/interdit |
+| VerificationCapabilityPanel | valid, a_renouveler, restreint, expired, revoked |
+| RenewalPanel | À anticiper, nécessaire, version en cours, décision attendue |
+
+Téléversement, recevabilité technique, contrôle humain et habilitation sont quatre faits distincts. needs_fix et rejected conduisent à une nouvelle version ; ne pas rendre éditable une décision historique. Le renouvellement réutilise l’éditeur du dossier.
+
+### 7.8 Support et recours
+
+| Composant | États/variantes |
+|---|---|
+| PublicSupportForm | Vide, incomplet, envoi, accusé neutre, quota |
+| SupportRequestCard | Référence, statut API, dernière activité, action attendue |
+| SupportConversation | Loading, messages, envoi, échec/reprise |
+| SupportReplyComposer | Vide, saisi, pièce, envoi, readonly si terminé |
+| SupportMessage | Titulaire, support, événement système |
+| InternalSupportNote | Création, enregistrée ; back-office uniquement |
+| ClaimantIdentityReview | À vérifier, complément, vérifiée, insuffisante |
+| SupportSessionAuthorization | Non accordée, accordée, expirée, révoquée |
+| AuthorizedDocumentCard | Active, proche expiration, expirée, révoquée, fichier indisponible |
+| DocumentAccessGrantForm | Document exact, durée, périmètre invalide, accord créé |
+| SupportConclusionPanel | Traitement, complément attendu, conclusion enregistrée |
+| AccountClosureRequest | Reçue, identité à vérifier, principal à remplacer, clôture confirmée |
+
+### 7.9 Back-office et exploitation
+
+| Composant | États/variantes |
+|---|---|
+| MetricCard | Valeur, loading, indisponible ; période visible |
+| ServiceTaskQueue | a_affecter, en_cours, attente_demandeur, attente_tiers, terminee |
+| AssigneeSelector | Éligibles, sélection, aucun, responsable devenu inéligible |
+| AssignmentPanel | Non affecté, affecté, réaffectation, conflit |
+| PriorityBadge | Normale, urgente avec motif |
+| ServiceDeadlinePanel | Dans les délais, proche, en retard ; dates initiales conservées |
+| DeadlineRescheduleForm | Ancienne/nouvelle échéance, motif requis, enregistré |
+| ConflictOfInterestAlert | Détecté, décision bloquée, réaffectation nécessaire |
+| AccountAdministrationPanel | Actions par état actuel, suspension/réactivation/clôture en cours |
+| InternalPermissionGrantForm | Permission/périmètre/période valides, chevauchement, interdit |
+| InternalPermissionHistory | À venir, effective, expirée, révoquée |
+| ServiceConfigurationEditor | Préparée, invalide, approuvée, historique |
+| ServiceCalendarEditor | Fuseau, plages, jours non travaillés ; valide/conflictuel |
+| SubstituteAssignmentForm | À venir, en vigueur, terminée/révoquée ; droits propres séparés |
+| TransmissionTable | queued, processing, retry_wait, sent, acked, failed, cancelled |
+| TransmissionAttemptHistory | started, accepted, acked, failed, unknown, cancelled |
+| AcknowledgementBadge | recu_durable, engage_local, effet_confirme |
+| PropagationPanel | En attente, en cours, confirmé, incident |
+| RetryTransmissionAction | Permis, indisponible, demandé, résultat à rapprocher |
+| IncidentDetails | Étape engagée/échouée, prochaine tentative, corrélation |
+
+Les états français descriptifs de ce catalogue sont des états de présentation lorsqu’aucun code API n’est donné. Ne pas les envoyer comme nouveaux enums au backend. En particulier unknown est un résultat de tentative, pas un état de transmission.
+
+## 8. Règles de sécurité et de parcours non négociables
+
+| Situation | Comportement UI attendu |
+|---|---|
+| pending / limited | Activation, renvoi, textes et déconnexion autorisés selon contrat ; aucune action commerciale |
+| active / normal | Accès conditionné en plus par rôle, propriété, mandat et permission |
+| suspended / support_only | Seulement recours lié, échanges et documents explicitement autorisés ; jamais livre A4 |
+| closed | Aucun reset ou ancien lien ne restaure un accès normal |
+| Changement de mot de passe | Annoncer la révocation et demander une nouvelle connexion |
+| Session échue ou révoquée | Refuser la poursuite et rafraîchir le contexte ; pas de prolongation locale |
+| Organisation | Contexte explicite dans le titre et la confirmation des actes sensibles |
+| Dossier KYC | Affectation et indépendance vérifiées côté serveur ; UI ne propose pas une auto-approbation |
+| Texte facultatif refusé | Pas de blocage arbitraire de l’activation |
+| Fichier privé | Téléchargement autorisé à chaque usage ; aucun lien public permanent |
+| Notes internes | Absentes des DTO utilisateur, pas uniquement masquées par CSS |
+| Réponse perdue | Afficher résultat incertain, consulter état/référence, puis proposer la reprise appropriée |
+| Événement interne reçu | Réception distincte du travail engagé et de l’effet confirmé |
+| Instructions A6 | Afficher demande d’examen ; aucune suspension présumée sur chargeback |
+
+Les sessions A1 représentent des connexions, pas les appareils de lecture A4. Pas de jeton sensible dans localStorage, query string journalisée ou console. Pour les liens d’activation/reset prévus par le contrat, éviter capture analytics, referer et journaux contenant leur secret ; utiliser un parcours de confirmation sans consommation par un simple affichage GET.
+
+Les erreurs publiques de récupération ne révèlent pas l’existence d’un compte. Ne pas copier les messages techniques bruts du serveur. Associer 401 à reconnexion, 403 à refus, 404 à absence/non-visibilité, 409 à conflit nécessitant relecture, 422 à erreurs de saisie, 429 à quota et 503 à indisponibilité. Adapter aux contrats API réels, sans inventer de réponse de succès.
+
+Les comptes à rebours utilisent une échéance serveur et tiennent compte de l’écart d’horloge ; ils n’accordent aucune autorisation. Les fenêtres de récupération, de session et d’habilitation ne sont pas codées en dur dans un composant.
+
+## 9. Méthode de réalisation d’un écran
+
+Avant le code, produire une fiche courte dans la réponse de travail : objectif, acteur/portée, données, composants réutilisés, action principale, états utiles, erreurs et permissions. Pour un écran complexe, conserver cette fiche dans la documentation du dépôt afin de guider les reprises.
+
+Implémenter dans cet ordre : contrat de données → structure sémantique → réutilisation des primitives → contenu métier → états distants et mutations → restrictions/concurrence → responsive/accessibilité → vérification ciblée. Ne pas livrer seulement un état rempli avec données parfaites.
+
+Pour chaque composant créé, rendre ses états critiques démontrables dans les tests ou une page de démonstration de développement existante. Ne pas ajouter un serveur ou outil lourd uniquement pour cette démonstration. Les fixtures sont fictives, distinctes du service de production et jamais utilisées comme repli silencieux d’une API en panne.
+
+## 10. Critères de recette
+
+### Chaque écran
+
+- [ ] Objectif et action principale identifiables sans lire toute la page.
+- [ ] Un h1 ; hiérarchie des sections cohérente ; contexte organisationnel visible si nécessaire.
+- [ ] Composants existants réutilisés ; aucun duplicata injustifié.
+- [ ] Chargement, vide, erreur/reprise et succès réel couverts selon le cas.
+- [ ] Requête en cours ne permet pas une double soumission.
+- [ ] Erreurs de champ reliées, résumé si formulaire long, valeurs non sensibles conservées.
+- [ ] Restrictions de portée et de propriété représentées ; aucun droit fictif.
+- [ ] Conflit ou résultat incertain présenté sans annoncer un échec ou succès non prouvé.
+- [ ] Mobile et clavier utilisables ; focus, labels et contrastes inspectés.
+- [ ] Aucun secret, pièce privée ou note interne dans les logs ou rendu non autorisé.
+- [ ] Dates, fuseau, libellés et statuts cohérents avec les contrats.
+- [ ] État et données d’un ancien compte/contexte effacés lors d’un changement.
+
+### Tests ciblés prioritaires
+
+| Cas | Résultat attendu |
+|---|---|
+| Soumission double clic | Un seul appel actif ; reprise avec intention stable selon API |
+| 422 sur formulaire long | Erreurs dans champs et résumé ; saisie non sensible conservée |
+| 409 sur décision KYC | Pas d’approbation affichée ; dossier relu et action réévaluée |
+| Perte réseau après suspension | Résultat incertain puis consultation ; pas de seconde suspension aveugle |
+| limited/support_only en navigation directe | Vue refusée ou restreinte ; serveur contrôle indépendamment |
+| Autorisation retirée pendant consultation | Action refusée, contexte rafraîchi, aucune fuite de contenu nouveau |
+| Session expirée | Reconnexion sans boucle ; retour interne contrôlé |
+| Recherche rapide / changement organisation | Réponse ancienne ignorée, données du contexte précédent non affichées |
+| Document de recours expiré | Téléchargement refusé et statut mis à jour |
+| ACK engage_local | Propagation affichée en cours tant que l’effet n’est pas confirmé |
+| Clavier dans un dialogue | Focus contenu puis restauré ; fermeture accessible |
+| Vue mobile de dossier | Champs, erreurs, pièces et action principale restent accessibles |
+
+Exécuter les commandes de lint, typecheck et tests pertinentes déjà définies au dépôt. Ne pas inventer de scripts npm existants. Les contrôles de sécurité backend et les courses MySQL restent ceux du MPT ; les tests UI ne les remplacent pas.
+
+## 11. Définition d’un travail terminé
+
+Un écran est terminé lorsque le contenu réel est hiérarchisé, les composants et états applicables sont implémentés, les contrats nécessaires sont raccordés et les vérifications ciblées ont été effectuées. Sinon, le présenter explicitement comme maquette, intégration partielle ou travail bloqué sur un contrat identifié.
+
+Rapport final attendu de Cursor :
+
+1. Écran et comportement livrés.
+2. Composants réutilisés/créés et changements de structure.
+3. États et permissions couverts.
+4. Tests réellement exécutés et résultats.
+5. Contrats manquants ou limites restantes, uniquement s’il y en a.
+
+## 12. Références
+
+Référentiel fonctionnel : liste UI A1 établie dans la conversation Livreaura, complétée par des instructions de réalisation ; MPT_A1_IdentityAccess_Livreaura_V1.md ; MOT/MLD A1 consolidés V1.3 et contrats inter-chaînes disponibles dans le projet.
+
+Format Cursor vérifié dans la [documentation officielle des règles](https://prod.cursor.com/docs/rules), consultée le 9 septembre 2026 : extension .mdc, métadonnées YAML, mode alwaysApply. Cette référence concerne uniquement le chargement des instructions, pas une garantie automatique de conformité du code.

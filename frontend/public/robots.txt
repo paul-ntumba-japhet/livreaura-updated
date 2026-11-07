@@ -1,0 +1,5 @@
+User-Agent: *
+Disallow: /inscription/activation
+Disallow: /recuperation
+Disallow: /compte
+
