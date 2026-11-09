@@ -13,6 +13,7 @@ const props = withDefaults(
     block?: boolean
     to?: RouteLocationRaw
     pill?: boolean
+    size?: 'default' | '46'
   }>(),
   {
     variant: 'primary',
@@ -21,6 +22,7 @@ const props = withDefaults(
     disabled: false,
     block: false,
     pill: false,
+    size: 'default',
   },
 )
 
@@ -41,17 +43,18 @@ const controlTag = computed(() => (isLink.value ? NuxtLink : 'button'))
       v-bind="$attrs"
       :to="isLink ? to : undefined"
       :type="isLink ? undefined : type"
-      class="inline-flex min-h-11 items-center justify-center gap-2 rounded-md px-gutter py-2 font-sans text-sm font-medium focus-ring"
-      :class="{
-        'w-full': block,
-        'cursor-pointer': !isDisabled,
-        'bg-brand text-text-on-brand hover:bg-brand-hover': variant === 'primary',
-        'border border-border bg-surface-raised text-text': variant === 'secondary',
-        'border border-brand bg-transparent text-text hover:bg-surface-muted': variant === 'outline',
-        'bg-transparent text-text': variant === 'quiet',
-        'bg-danger text-text-inverse': variant === 'destructive',
-        'pointer-events-none cursor-not-allowed opacity-50': isDisabled,
-      }"
+      class="inline-flex items-center justify-center gap-2 rounded-md px-gutter font-sans text-sm font-medium focus-ring"
+      :class="[
+        props.size === '46' ? 'h-[46px] min-h-[46px] py-0' : 'min-h-11 py-2',
+        block ? 'w-full' : '',
+        !isDisabled ? 'cursor-pointer' : '',
+        variant === 'primary' ? 'bg-brand text-text-on-brand hover:bg-brand-hover' : '',
+        variant === 'secondary' ? 'border border-border bg-surface-raised text-text' : '',
+        variant === 'outline' ? 'border border-brand bg-transparent text-text hover:bg-surface-muted' : '',
+        variant === 'quiet' ? 'bg-transparent text-text' : '',
+        variant === 'destructive' ? 'bg-danger text-text-inverse' : '',
+        isDisabled ? 'pointer-events-none cursor-not-allowed opacity-50' : '',
+      ]"
       :disabled="isLink ? undefined : isDisabled"
       :aria-busy="loading || undefined"
       :aria-describedby="disabled && disabledReason ? reasonId : undefined"

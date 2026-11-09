@@ -3,7 +3,7 @@ import type { RouteLocationRaw } from 'vue-router'
 
 const route = useRoute()
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
     session?: 'visitor' | 'account' | 'loading'
     displayLabel?: string
@@ -37,13 +37,19 @@ const emit = defineEmits<{
   'toggle-menu': []
 }>()
 
+const accueilCurrent = computed(() => typeof props.homeTo === 'string' && route.path === props.homeTo)
+const catalogueColumns = computed(() => props.session !== 'account' && route.path === '/catalogue')
+const catalogueCurrent = computed(() => route.path === '/catalogue' || route.path.startsWith('/catalogue/'))
 const inscriptionCurrent = computed(() => route.path.startsWith('/inscription'))
 const connexionCurrent = computed(() => route.path.startsWith('/connexion'))
 </script>
 
 <template>
   <header class="sticky top-0 z-20 border-b border-border bg-surface-raised">
-    <div class="flex flex-wrap items-center gap-x-gutter gap-y-stack px-page py-stack">
+    <div
+      class="flex min-h-[var(--layout-header-height)] flex-wrap items-center gap-x-gutter gap-y-2 px-page"
+      :class="catalogueColumns ? 'lg:grid lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-8' : undefined"
+    >
       <div
         v-if="showMenuToggle"
         class="md:hidden"
@@ -59,20 +65,37 @@ const connexionCurrent = computed(() => route.path.startsWith('/connexion'))
       </div>
       <NuxtLink
         :to="homeTo"
-        class="inline-flex shrink-0 rounded-sm focus-ring"
+        class="inline-flex shrink-0 rounded-sm focus-ring lg:justify-self-start"
       >
         <BrandLogo />
       </NuxtLink>
-      <div
-        v-if="$slots.search"
-        class="account-header-search order-last w-full min-w-0 md:order-none md:flex-1"
-      >
-        <slot name="search" />
-      </div>
       <nav
-        class="ml-auto flex items-center gap-stack"
+        class="flex min-w-0 flex-1 flex-wrap items-center gap-2"
         aria-label="Menu principal"
       >
+        <NuxtLink
+          :to="homeTo"
+          class="focus-ring inline-flex min-h-11 items-center px-2 font-sans text-sm text-text"
+          :class="[accueilCurrent ? 'font-semibold' : undefined, catalogueColumns ? 'lg:-ml-2' : undefined]"
+          :aria-current="accueilCurrent ? 'page' : undefined"
+        >
+          Accueil
+        </NuxtLink>
+        <NuxtLink
+          to="/catalogue"
+          class="focus-ring inline-flex min-h-11 items-center px-2 font-sans text-sm text-text"
+          :class="catalogueCurrent ? 'font-semibold' : undefined"
+          :aria-current="catalogueCurrent ? 'page' : undefined"
+        >
+          Catalogue
+        </NuxtLink>
+        <div
+          v-if="$slots.search"
+          class="account-header-search order-last w-full min-w-0 md:order-none md:flex-1"
+        >
+          <slot name="search" />
+        </div>
+        <div class="ml-auto flex items-center gap-2">
           <button
             v-if="showNotifications && session === 'account'"
             type="button"
@@ -100,20 +123,25 @@ const connexionCurrent = computed(() => route.path.startsWith('/connexion'))
             @logout="emit('logout')"
           />
           <template v-else>
-            <UiLink
+            <NuxtLink
               to="/connexion"
-              :current="connexionCurrent"
+              class="focus-ring inline-flex min-h-11 items-center px-2 font-sans text-sm text-text"
+              :class="connexionCurrent ? 'font-semibold' : undefined"
+              :aria-current="connexionCurrent ? 'page' : undefined"
             >
               Connexion
-            </UiLink>
-            <UiLink
+            </NuxtLink>
+            <UiButton
+              variant="secondary"
               to="/inscription/parcours"
-              :current="inscriptionCurrent"
+              class="whitespace-nowrap"
+              :aria-current="inscriptionCurrent ? 'page' : undefined"
             >
-              Créer un compte
-            </UiLink>
+              S’inscrire
+            </UiButton>
           </template>
-        </nav>
+        </div>
+      </nav>
     </div>
   </header>
 </template>

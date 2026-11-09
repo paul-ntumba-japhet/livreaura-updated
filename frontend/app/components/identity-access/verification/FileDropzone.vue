@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { fetchVerificationEvidenceBlob } from '../../../services/identity-access/verification'
+
 const MAX_BYTES = 8_388_608
 const ACCEPT = '.pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png'
 
@@ -9,12 +11,16 @@ const props = withDefaults(
     disabled?: boolean
     disabledReason?: string
     loading?: boolean
+    progress?: number | null
     error?: string
     selectedName?: string
+    dossierId?: string
+    pieceId?: string
   }>(),
   {
     disabled: false,
     loading: false,
+    progress: null,
   },
 )
 
@@ -28,8 +34,25 @@ const errorId = useId()
 const hovering = ref(false)
 const localError = ref('')
 const inputRef = ref<HTMLInputElement | null>(null)
+const previewUrl = ref<string | null>(null)
+const previewKind = ref<'image' | 'pdf' | 'file' | null>(null)
+const previewName = ref('')
+const storedPreviewFailed = ref(false)
+let previewToken = 0
 
 const blocked = computed(() => props.disabled || props.loading)
+const measuredProgress = computed(() => {
+  if (!props.loading || props.progress == null || Number.isNaN(props.progress)) {
+    return null
+  }
+  return Math.min(1, Math.max(0, props.progress))
+})
+const progressLabel = computed(() => {
+  if (measuredProgress.value === null) {
+    return 'Téléversement en cours.'
+  }
+  return `Téléversement : ${Math.round(measuredProgress.value * 100)} %.`
+})
 const describedBy = computed(() => {
   const ids = [
     props.disabled && props.disabledReason ? reasonId : null,
@@ -42,7 +65,45 @@ function extensionOk(name: string): boolean {
   return /\.(pdf|jpe?g|png)$/i.test(name)
 }
 
-function onFiles(files: FileList | null) {
+function kindFor(name: string, type: string): 'image' | 'pdf' | 'file' {
+  if (type.startsWith('image/') || /\.jpe?g$|\.png$/i.test(name)) {
+    return 'image'
+  }
+  if (type === 'application/pdf' || /\.pdf$/i.test(name)) {
+    return 'pdf'
+  }
+  return 'file'
+}
+
+async function sniffKind(source: Blob, name: string, type: string): Promise<'image' | 'pdf' | 'file'> {
+  const known = kindFor(name, type)
+  if (known !== 'file') {
+    return known
+  }
+  const bytes = new Uint8Array(await source.slice(0, 8).arrayBuffer())
+  if (bytes[0] === 0xff && bytes[1] === 0xd8) {
+    return 'image'
+  }
+  if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) {
+    return 'image'
+  }
+  if (bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46) {
+    return 'pdf'
+  }
+  return 'file'
+}
+
+async function replacePreview(source: Blob, name: string, type: string) {
+  const kind = await sniffKind(source, name, type)
+  if (previewUrl.value) {
+    URL.revokeObjectURL(previewUrl.value)
+  }
+  previewUrl.value = URL.createObjectURL(source)
+  previewKind.value = kind
+  previewName.value = name
+}
+
+async function onFiles(files: FileList | null) {
   localError.value = ''
   const file = files?.[0]
   if (!file) {
@@ -56,6 +117,8 @@ function onFiles(files: FileList | null) {
     localError.value = 'Le fichier dépasse 8 Mo.'
     return
   }
+  storedPreviewFailed.value = false
+  await replacePreview(file, file.name, file.type)
   emit('select', file)
   if (inputRef.value) {
     inputRef.value.value = ''
@@ -70,6 +133,36 @@ function onDrop(event: DragEvent) {
   event.preventDefault()
   onFiles(event.dataTransfer?.files ?? null)
 }
+
+watch(
+  () => [props.dossierId, props.pieceId] as const,
+  async ([dossierId, pieceId]) => {
+    const token = ++previewToken
+    if (previewName.value || !dossierId || !pieceId) {
+      return
+    }
+    storedPreviewFailed.value = false
+    try {
+      const blob = await fetchVerificationEvidenceBlob(dossierId, pieceId)
+      if (token !== previewToken || previewName.value) {
+        return
+      }
+      await replacePreview(blob, props.label, blob.type)
+    }
+    catch {
+      if (token === previewToken) {
+        storedPreviewFailed.value = true
+      }
+    }
+  },
+  { immediate: true },
+)
+
+onBeforeUnmount(() => {
+  if (previewUrl.value) {
+    URL.revokeObjectURL(previewUrl.value)
+  }
+})
 </script>
 
 <template>
@@ -82,7 +175,7 @@ function onDrop(event: DragEvent) {
       :class="{
         'border-brand bg-surface-muted': hovering && !blocked,
         'border-border bg-surface-raised': !hovering || blocked,
-        'opacity-50': blocked,
+        'opacity-50': disabled && !loading,
       }"
       @dragenter.prevent="hovering = !blocked"
       @dragover.prevent="hovering = !blocked"
@@ -101,9 +194,42 @@ function onDrop(event: DragEvent) {
         @change="onFiles(($event.target as HTMLInputElement).files)"
       >
       <p class="font-sans text-sm text-text">
-        <template v-if="loading">Téléversement en cours.</template>
-        <template v-else-if="selectedName">Fichier sélectionné : {{ selectedName }}</template>
+        <template v-if="loading">{{ progressLabel }}</template>
+        <template v-else-if="previewName">Aperçu de {{ previewName }}.</template>
+        <template v-else-if="selectedName">{{ selectedName }}</template>
         <template v-else>Déposez un PDF, JPEG ou PNG, ou choisissez un fichier.</template>
+      </p>
+      <div
+        v-if="loading"
+        class="mt-3"
+        role="progressbar"
+        aria-valuemin="0"
+        aria-valuemax="100"
+        :aria-valuenow="measuredProgress === null ? undefined : Math.round(measuredProgress * 100)"
+        :aria-valuetext="progressLabel"
+      >
+        <div class="h-1 overflow-hidden rounded-full bg-surface-muted">
+          <div
+            class="h-full rounded-full bg-brand"
+            :class="measuredProgress === null ? 'evidence-progress-indeterminate' : ''"
+            :style="measuredProgress === null ? undefined : { width: `${Math.round(measuredProgress * 100)}%` }"
+          />
+        </div>
+      </div>
+      <img
+        v-if="previewUrl && previewKind === 'image'"
+        :src="previewUrl"
+        :alt="`Aperçu : ${label}`"
+        class="mt-3 max-h-40 w-full rounded-md border border-border bg-white object-contain"
+      >
+      <iframe
+        v-else-if="previewUrl && previewKind === 'pdf'"
+        :src="previewUrl"
+        :title="`Aperçu : ${label}`"
+        class="mt-3 h-40 w-full rounded-md border border-border bg-white"
+      />
+      <p v-else-if="storedPreviewFailed" class="mt-3 font-sans text-sm text-text-muted">
+        L’aperçu de cette pièce n’est pas disponible.
       </p>
       <p class="mt-2">
         <UiButton

@@ -250,21 +250,17 @@ export async function attachVerificationEvidence(
   dossierId: string,
   typeDoc: string,
   file: File,
+  onProgress?: (ratio: number | null) => void,
 ): Promise<AttachVerificationEvidenceResponse> {
   return withIdentityCsrf(async () => {
     const form = new FormData()
     form.append('type_doc', typeDoc)
     form.append('fichier', file)
 
-    const response = await $fetch<ApiSuccess<AttachVerificationEvidenceResponse>>(
+    const response = await postVerificationEvidence<ApiSuccess<AttachVerificationEvidenceResponse>>(
       `${apiBase()}/api/v1/identity-access/kyc/dossiers/${dossierId}/pieces`,
-      {
-        method: 'POST',
-        body: form,
-        credentials: 'include',
-        timeout: 30000,
-        headers: identityMutationHeaders(),
-      },
+      form,
+      onProgress,
     )
 
     const dossier = asVerificationDossier(response?.data?.dossier)
@@ -279,6 +275,66 @@ export async function attachVerificationEvidence(
       dossier,
     }
   })
+}
+
+function postVerificationEvidence<T>(
+  url: string,
+  body: FormData,
+  onProgress?: (ratio: number | null) => void,
+): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', url)
+    xhr.withCredentials = true
+    xhr.timeout = 30000
+    for (const [key, value] of Object.entries(identityMutationHeaders())) {
+      xhr.setRequestHeader(key, value)
+    }
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable && event.total > 0) {
+        onProgress?.(event.loaded / event.total)
+        return
+      }
+      onProgress?.(null)
+    }
+    xhr.onerror = () => reject({ statusCode: 0 })
+    xhr.ontimeout = () => reject({ statusCode: 0 })
+    xhr.onload = () => {
+      let parsed: unknown = null
+      try {
+        parsed = xhr.responseText ? JSON.parse(xhr.responseText) : null
+      }
+      catch {
+        parsed = null
+      }
+      if (xhr.status < 200 || xhr.status >= 300) {
+        reject({ statusCode: xhr.status, data: parsed })
+        return
+      }
+      resolve(parsed as T)
+    }
+    onProgress?.(null)
+    xhr.send(body)
+  })
+}
+
+export async function fetchVerificationEvidenceBlob(dossierId: string, pieceId: string): Promise<Blob> {
+  try {
+    return await $fetch<Blob>(
+      `${apiBase()}/api/v1/identity-access/kyc/dossiers/${dossierId}/pieces/${pieceId}`,
+      {
+        credentials: 'include',
+        timeout: 30000,
+        responseType: 'blob',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+      },
+    )
+  }
+  catch (error) {
+    throw normalizeIdentityFetchError(error)
+  }
 }
 
 export async function submitVerificationDossier(

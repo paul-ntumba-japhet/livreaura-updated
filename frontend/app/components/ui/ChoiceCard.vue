@@ -12,11 +12,13 @@ const props = withDefaults(
     disabled?: boolean
     disabledReason?: string
     variant?: 'row' | 'tile'
+    compact?: boolean
     benefits?: string[]
   }>(),
   {
     disabled: false,
     variant: 'row',
+    compact: false,
     benefits: () => [],
   },
 )
@@ -51,7 +53,8 @@ function onChange() {
       :for="inputId"
       class="relative flex cursor-pointer rounded-md border-2"
       :class="{
-        'min-h-11 items-start gap-gutter px-gutter py-stack': variant === 'row',
+        'min-h-11 items-center gap-2 px-gutter py-2': variant === 'row' && compact,
+        'min-h-11 items-start gap-gutter px-gutter py-stack': variant === 'row' && !compact,
         'h-full min-h-48 flex-col items-center gap-stack px-gutter py-section text-center focus-ring-within': variant === 'tile',
         'border-border': !isSelected || isDisabled,
         'border-brand shadow-sm': isSelected && !isDisabled,
@@ -65,7 +68,7 @@ function onChange() {
         :id="inputId"
         type="radio"
         class="size-4 shrink-0 accent-brand"
-        :class="variant === 'tile' ? 'sr-only' : 'mt-1 focus-ring'"
+        :class="variant === 'tile' ? 'sr-only' : (compact ? 'focus-ring' : 'mt-1 focus-ring')"
         :name="inputName"
         :value="value"
         :checked="isSelected"
@@ -100,7 +103,7 @@ function onChange() {
         <span v-if="subtitle" class="choice-subtitle mt-1 block font-sans text-sm text-brand">
           {{ subtitle }}
         </span>
-        <span v-if="description" class="choice-description mt-2 block font-sans text-sm text-text-muted">
+        <span v-if="description" class="choice-description block font-sans text-sm text-text-muted" :class="compact ? 'mt-0.5' : 'mt-2'">
           {{ description }}
         </span>
         <ul v-if="benefits.length" class="choice-benefits">

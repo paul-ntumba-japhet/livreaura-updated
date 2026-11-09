@@ -65,8 +65,7 @@ function onSelect(id: string) {
 <template>
   <nav
     :aria-label="label ?? 'Progression'"
-    class="overflow-x-auto"
-    :class="{ 'stepper-compact': compact }"
+    :class="[compact ? 'stepper-compact overflow-visible' : 'overflow-x-auto']"
   >
     <ol
       class="flex"

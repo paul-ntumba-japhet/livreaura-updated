@@ -140,6 +140,14 @@
     @apply bg-surface text-text font-sans antialiased;
   }
 
+  html:has(.account-shell),
+  html:has(.account-shell) body {
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow: hidden;
+    background-color: var(--livreaura-white);
+  }
+
   body {
     @apply min-h-screen bg-surface text-text;
   }
@@ -916,9 +924,26 @@
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-brand) 16%, transparent);
 }
 
+.evidence-progress-indeterminate {
+  width: 35%;
+  animation: evidence-progress-slide 1.1s ease-in-out infinite;
+}
+
+@keyframes evidence-progress-slide {
+  from {
+    transform: translateX(-120%);
+  }
+
+  to {
+    transform: translateX(320%);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .path-choices .grid > div > label {
-    transition: none;
+  .evidence-progress-indeterminate {
+    width: 100%;
+    animation: none;
+    opacity: 0.45;
   }
 }
 
@@ -1031,6 +1056,7 @@
 .account-shell {
   height: 100dvh;
   max-height: 100dvh;
+  min-height: 0;
   overflow: hidden;
   background-color: var(--livreaura-white);
   color: var(--text-primary);
@@ -1340,6 +1366,69 @@
   color: var(--color-brand);
 }
 
+.account-shell .dossier-create {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.account-shell .dossier-create h2 {
+  margin: 0;
+  font-family: var(--font-geist);
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 38px;
+  color: var(--text-primary);
+}
+
+.account-shell .dossier-create header p {
+  margin: 8px 0 0;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 21px;
+  color: var(--text-muted);
+}
+
+.account-shell .dossier-create legend {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+  color: var(--text-primary);
+}
+
+.account-shell .dossier-create label {
+  border-width: 1px;
+  border-radius: 8px;
+  background-color: var(--livreaura-white);
+}
+
+.account-shell .dossier-create label:has(input:checked) {
+  border-color: var(--color-action);
+  box-shadow: none;
+}
+
+.account-shell .dossier-create .dossier-create-submit {
+  width: 100%;
+  height: 46px;
+  min-height: 46px;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-radius: 8px;
+  background-color: var(--color-action);
+  color: var(--color-text-on-action);
+  font-weight: 600;
+}
+
+.account-shell .dossier-create .dossier-create-submit:hover {
+  background-color: var(--color-action-hover);
+}
+
 .account-shell .dossier-follow {
   display: flex;
   flex-direction: column;
@@ -1628,6 +1717,63 @@
 
 @media (min-width: 768px) {
   .account-shell .declare-form > .declare-pair {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+.account-shell .payout-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.account-shell .payout-form > .payout-pair {
+  display: grid;
+  gap: 16px;
+}
+
+.account-shell .payout-form label {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+  color: var(--text-primary);
+}
+
+.account-shell .account-main .payout-form p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--text-muted);
+}
+
+.account-shell .account-main .payout-form p.text-danger {
+  color: var(--color-danger);
+}
+
+.account-shell .payout-form .field-control {
+  height: 46px;
+  min-height: 46px;
+  border-radius: 8px;
+  border-color: var(--border-default);
+  background-color: var(--livreaura-white);
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.account-shell .payout-form .field-control::placeholder {
+  color: var(--text-muted);
+}
+
+.account-shell .payout-form .field-control:focus,
+.account-shell .payout-form .field-control:focus-visible {
+  border-color: var(--livreaura-orange);
+  outline: none;
+  box-shadow: 0 0 0 1px var(--livreaura-orange);
+}
+
+@media (min-width: 768px) {
+  .account-shell .payout-form > .payout-pair {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 }

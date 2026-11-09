@@ -30,6 +30,7 @@ const emit = defineEmits<{
     <ChoiceCard
       v-for="option in options"
       :key="option.id"
+      compact
       :value="option.id"
       :title="option.label"
       :description="option.description"
@@ -38,11 +39,11 @@ const emit = defineEmits<{
     >
       <template #icon>
         <span
-          class="inline-flex size-10 items-center justify-center rounded-full bg-surface-muted text-text-muted"
+          class="inline-flex size-8 items-center justify-center rounded-full bg-surface-muted text-text-muted"
         >
           <UiIcon
             :name="option.kind === 'organisation' ? 'building-2' : 'user'"
-            size="md"
+            size="sm"
           />
         </span>
       </template>

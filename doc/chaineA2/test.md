@@ -1,0 +1,5 @@
+Exécuter sur MySQL la recette du MPT : R01 à R24, IA-R01 à IA-R09 et CAT-01 à CAT-14. Quelques courses d’avis et le refus du panier ont été observés sur une sonde annulée. Cela ne vaut pas la recette, et le service ne peut pas être déclaré connecté avant elle.
+Consommer les événements A1 du contrat : accès au compte, session, permission interne, lien auteur et habilitation commerciale. La synchronisation actuelle relit le catalogue après une modification de vitrine. Elle ne reçoit pas encore ces événements.
+Raccorder A3 et A4 pour que le panier, le gratuit et la lecture puissent confirmer ou refuser, au lieu de rester indisponibles.
+Brancher la file a2-catalogue sur un worker. La table jobs n’existe pas. Les réceptions sont relues dans la requête, ou par a2:dispatch-catalogue, a2:resume-catalogue et a2:recalculate-aggregates.
+Pour ouvrir les avis et les aperçus au public : approuver A2_consultation avec les plafonds retenus, puis faire attribuer les trois permissions A2 par un compte gerer_habilitations_internes.

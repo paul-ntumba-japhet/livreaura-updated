@@ -15,6 +15,7 @@ export function useAttachVerificationEvidence() {
   const result = ref<AttachVerificationEvidenceResponse | null>(null)
   const sessionEnded = ref(false)
   const attachingType = ref('')
+  const uploadProgress = ref<number | null>(null)
 
   async function resolveUnauthorized(): Promise<void> {
     try {
@@ -44,12 +45,15 @@ export function useAttachVerificationEvidence() {
 
     mutationState.value = 'submitting'
     attachingType.value = typeDoc
+    uploadProgress.value = null
     fieldErrors.value = {}
     errorMessage.value = ''
     sessionEnded.value = false
 
     try {
-      result.value = await attachVerificationEvidence(dossierId, typeDoc, file)
+      result.value = await attachVerificationEvidence(dossierId, typeDoc, file, (ratio) => {
+        uploadProgress.value = ratio
+      })
       mutationState.value = 'succeeded'
     }
     catch (error) {
@@ -73,6 +77,7 @@ export function useAttachVerificationEvidence() {
     finally {
       if (mutationState.value !== 'submitting') {
         attachingType.value = mutationState.value === 'succeeded' ? '' : attachingType.value
+        uploadProgress.value = null
       }
     }
   }
@@ -84,6 +89,7 @@ export function useAttachVerificationEvidence() {
     result,
     sessionEnded,
     attachingType,
+    uploadProgress,
     submit,
   }
 }

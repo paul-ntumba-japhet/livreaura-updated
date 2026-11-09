@@ -65,6 +65,7 @@ const {
   result: attachResult,
   sessionEnded: attachSessionEnded,
   attachingType,
+  uploadProgress,
   submit: submitAttach,
 } = useAttachVerificationEvidence()
 const {
@@ -180,24 +181,27 @@ const viewingDossier = computed(() => {
   }
   return dossiers.value.length > 0
 })
-const otherSubjectOptions = computed(() => {
-  const current = dossier.value?.sujet
-  if (!current) {
-    return subjectOptions.value
-  }
-  return subjectOptions.value.filter(option => !optionMatchesDossierSubject(option, current))
-})
-const createPanelOptions = computed(() => viewingDossier.value ? otherSubjectOptions.value : subjectOptions.value)
-const canOpenAnotherSubject = computed(() =>
-  Boolean(dossier.value)
-  && canDeposit.value
-  && otherSubjectOptions.value.some(option => !option.disabled)
+const creatableSubjects = computed(() =>
+  subjectOptions.value.filter(option =>
+    !option.disabled
+    && !dossiers.value.some(item => optionMatchesDossierSubject(option, item.sujet)),
+  ),
 )
-const showCreatePanel = computed(() => createPanelRequested.value || !viewingDossier.value)
+const createPanelOptions = computed(() => creatableSubjects.value)
+const canOpenAnotherSubject = computed(() => canDeposit.value && creatableSubjects.value.length > 0)
+const showCreatePanel = computed(() => {
+  if (dossierListRequested.value && !createPanelRequested.value) {
+    return false
+  }
+  return createPanelRequested.value || !viewingDossier.value
+})
 const canSwitchDossier = computed(() => dossiers.value.length > 1 || canOpenAnotherSubject.value)
 const showDossierList = computed(() => {
-  if (dossiers.value.length === 0) {
+  if (showCreatePanel.value || dossiers.value.length === 0) {
     return false
+  }
+  if (dossierListRequested.value) {
+    return true
   }
   if (requestedSubjectWithoutDossier.value && !dossier.value) {
     return false
@@ -205,8 +209,15 @@ const showDossierList = computed(() => {
   if (!dossier.value) {
     return true
   }
-  return dossierListRequested.value
+  return false
 })
+const showOpenDossier = computed(() => !showCreatePanel.value && !showDossierList.value)
+const showVerificationNav = computed(() =>
+  !unknownStatus.value
+  && !supportOnly.value
+  && dossiers.value.length > 0,
+)
+const canOfferNewDossier = computed(() => canOpenAnotherSubject.value)
 const depositRequirements = computed(() => {
   const organization = organisations.value.find(item => item.id === selectedSubjectId.value)
   return (organization?.exigences ?? []).filter(item => requirementNeedsDocument(item.volet))
@@ -269,10 +280,12 @@ function restoreSubjectFromDossier(): void {
 }
 
 function revealCreatePanel(): void {
-  const firstEnabled = otherSubjectOptions.value.find(option => !option.disabled)
-  if (firstEnabled) {
-    selectedSubjectId.value = firstEnabled.id
+  const current = creatableSubjects.value.find(option => option.id === selectedSubjectId.value)
+  const next = current ?? creatableSubjects.value[0]
+  if (next) {
+    selectedSubjectId.value = next.id
   }
+  dossierListRequested.value = false
   createPanelRequested.value = true
   void nextTick(() => {
     document.getElementById('creation-dossier')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -556,7 +569,7 @@ onMounted(() => {
       to="/compte"
     />
     <PageHeader
-      v-if="!showFollowUp"
+      v-if="!showFollowUp && !showCreatePanel"
       :title="pageTitle"
       :description="pageDescription"
       :loading="!account && (loadState === 'idle' || loadState === 'loading')"
@@ -610,6 +623,38 @@ onMounted(() => {
           <UiLink to="/inscription/verification">Aller à la vérification e-mail</UiLink>
         </template>
       </RestrictionBanner>
+
+      <nav
+        v-if="showVerificationNav"
+        class="flex flex-wrap items-center gap-gutter"
+        aria-label="Dossiers de vérification"
+      >
+        <button
+          type="button"
+          class="inline-flex min-h-11 items-center rounded-sm font-sans text-sm focus-ring disabled:cursor-not-allowed disabled:opacity-50"
+          :class="showDossierList
+            ? 'font-semibold text-brand underline decoration-brand underline-offset-4'
+            : 'font-medium text-text-muted hover:text-text'"
+          :aria-current="showDossierList ? 'page' : undefined"
+          :disabled="mutationBusy"
+          @click="viewDossiers"
+        >
+          Afficher les dossiers
+        </button>
+        <button
+          v-if="canOfferNewDossier"
+          type="button"
+          class="inline-flex min-h-11 items-center rounded-sm font-sans text-sm focus-ring disabled:cursor-not-allowed disabled:opacity-50"
+          :class="showCreatePanel
+            ? 'font-semibold text-brand underline decoration-brand underline-offset-4'
+            : 'font-medium text-text-muted hover:text-text'"
+          :aria-current="showCreatePanel ? 'page' : undefined"
+          :disabled="mutationBusy"
+          @click="revealCreatePanel"
+        >
+          Créer un dossier
+        </button>
+      </nav>
 
       <VerificationCreatePanel
         v-if="showCreatePanel"
@@ -687,10 +732,9 @@ onMounted(() => {
       </div>
 
       <VerificationDossierFollowUp
-        v-else-if="showFollowUp && dossier"
+        v-else-if="showOpenDossier && showFollowUp && dossier"
         :dossier="dossier"
         :subject-line="followUpSubjectLine"
-        :other-dossiers="dossiers.length > 1"
         :can-deposit="canDeposit"
         :opening="opening"
         :downloading-id="downloadingId"
@@ -703,7 +747,7 @@ onMounted(() => {
       />
 
       <VerificationDossierWorkspace
-        v-else-if="dossier"
+        v-else-if="showOpenDossier && dossier"
         ref="workspace"
         :dossier="dossier"
         :fiscal-draft="fiscalDraft"
@@ -715,6 +759,7 @@ onMounted(() => {
         :saving="saving"
         :attaching="attaching"
         :attaching-type="attachingType"
+        :upload-progress="uploadProgress"
         :submitting="submitting"
         :mutation-busy="mutationBusy"
         :downloading-id="downloadingId"
@@ -746,22 +791,12 @@ onMounted(() => {
         id="dossiers-du-compte"
         class="scroll-mt-gutter rounded-md border border-border bg-surface-raised px-gutter py-gutter"
       >
-        <div class="flex flex-wrap items-center justify-between gap-stack">
-          <h2 class="font-serif text-xl font-semibold text-text">
-            Dossiers du compte
-            <span class="ml-2 font-sans text-sm font-normal text-text-muted">
-              {{ dossierCountLabel }}
-            </span>
-          </h2>
-          <UiButton
-            v-if="canOpenAnotherSubject && !showCreatePanel"
-            variant="secondary"
-            :disabled="mutationBusy"
-            @click="revealCreatePanel"
-          >
-            Ouvrir un autre dossier
-          </UiButton>
-        </div>
+        <h2 class="font-serif text-xl font-semibold text-text">
+          Dossiers du compte
+          <span class="ml-2 font-sans text-sm font-normal text-text-muted">
+            {{ dossierCountLabel }}
+          </span>
+        </h2>
         <div
           v-if="dossiers.length === 0"
           class="flex min-h-56 items-center justify-center"

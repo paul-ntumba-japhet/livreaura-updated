@@ -78,7 +78,7 @@ async function onLogout() {
     </div>
     <div
       v-if="unavailable"
-      class="flex min-h-0 flex-1 flex-col overflow-y-auto"
+      class="flex min-h-0 flex-1 flex-col"
     >
       <div class="m-auto w-full px-page py-section">
         <slot name="unavailable">
@@ -91,7 +91,7 @@ async function onLogout() {
     </div>
     <div
       v-else
-      class="flex min-h-0 flex-1 flex-col overflow-y-auto"
+      class="flex min-h-0 flex-1 flex-col"
     >
       <div class="m-auto w-full">
         <slot />

@@ -33,6 +33,7 @@ const props = withDefaults(
     saving?: boolean
     attaching?: boolean
     attachingType?: string | null
+    uploadProgress?: number | null
     submitting?: boolean
     mutationBusy?: boolean
     downloadingId?: string | null
@@ -106,6 +107,22 @@ let autoSaveTimer: ReturnType<typeof setTimeout> | null = null
 function pieceFor(code: string) {
   return props.dossier.pieces.find(piece => piece.type_doc === code)
 }
+
+const identityRequirement = computed(() =>
+  documentRequirements.value.find(item => item.code === 'identite_personne' || item.code === 'identite_representant') ?? null,
+)
+const identityUploaded = computed(() => {
+  const requirement = identityRequirement.value
+  if (!requirement) {
+    return true
+  }
+  return Boolean(pieceFor(requirement.code))
+})
+const identityBlocksNext = computed(() =>
+  draftOpen.value
+  && currentStepId.value === 'pieces'
+  && !identityUploaded.value,
+)
 
 function firstIncompleteFormStep(): WorkspaceSectionId | null {
   return sections.value.find(section =>
@@ -255,11 +272,23 @@ function initialStepId(): WorkspaceSectionId {
   if (!draftOpen.value) {
     return available[available.length - 1]?.id ?? 'soumission'
   }
+  if (!identityUploaded.value && available.some(section => section.id === 'pieces')) {
+    return 'pieces'
+  }
   return firstIncompleteStep() ?? available[0].id
 }
 
 function goTo(id: string) {
   if (!sections.value.some(section => section.id === id)) {
+    return
+  }
+  if (
+    draftOpen.value
+    && !identityUploaded.value
+    && id !== 'pieces'
+    && sections.value.some(section => section.id === 'pieces')
+  ) {
+    currentStepId.value = 'pieces'
     return
   }
   if (id === 'soumission' && draftOpen.value) {
@@ -496,8 +525,11 @@ defineExpose({ validateDraft })
               v-if="draftOpen"
               :label="labelForRequirementCode(requirement.code)"
               :hint="requirement.nature_preuve ? `${requirement.nature_preuve} PDF, JPEG ou PNG, 8 Mo au plus.` : 'PDF, JPEG ou PNG, 8 Mo au plus.'"
-              :disabled="mutationBusy"
+              :disabled="mutationBusy && !(attaching && attachingType === requirement.code)"
               :loading="attaching && attachingType === requirement.code"
+              :progress="attaching && attachingType === requirement.code ? uploadProgress : null"
+              :dossier-id="dossier.id"
+              :piece-id="pieceFor(requirement.code)?.id"
               :selected-name="pieceFor(requirement.code) ? 'Pièce déjà déposée. Un nouveau fichier la complète.' : undefined"
               @select="emit('attach', requirement.code, $event)"
             />
@@ -573,7 +605,8 @@ defineExpose({ validateDraft })
       <UiButton
         v-if="!isLastStep"
         :loading="saving && afterSaveAction === 'next'"
-        :disabled="(mutationBusy && !saving) || (saving && afterSaveAction === 'next')"
+        :disabled="identityBlocksNext || (mutationBusy && !saving) || (saving && afterSaveAction === 'next')"
+        :disabled-reason="identityBlocksNext ? 'Déposez la pièce d’identité avant de continuer.' : undefined"
         @click="goNext"
       >
         Étape suivante
